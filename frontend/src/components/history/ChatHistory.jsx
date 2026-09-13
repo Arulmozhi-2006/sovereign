@@ -173,7 +173,7 @@ function ChatHistory({
   return (
     <aside className="chat-history">
       <div className="chat-history__top-row">
-        <span className="chat-history__brand">Chats</span>
+        <span className="chat-history__brand">Chats Test</span>
         <button
           className="chat-history__collapse-toggle"
           onClick={() => setCollapsed(true)}
