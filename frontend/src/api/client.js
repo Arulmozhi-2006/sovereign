@@ -253,3 +253,20 @@ export async function getSessionMessages(sessionId) {
   }
   return response.json();
 }
+
+export async function renameSession(sessionId, title) {
+  const response = await fetch(`/api/history/${sessionId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || "Could not rename chat.");
+  }
+
+  return response.json();
+}

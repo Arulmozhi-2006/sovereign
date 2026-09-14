@@ -175,6 +175,14 @@ def get_messages(session_id: str) -> list:
             for row in rows
         ]
 
+def rename_session(session_id: str, title: str) -> bool:
+    """Rename a session. Returns True if it existed."""
+    with _connect() as conn:
+        cursor = conn.execute(
+            "UPDATE sessions SET title = ? WHERE id = ?",
+            (title, session_id),
+        )
+        return cursor.rowcount > 0
 
 def delete_session(session_id: str) -> bool:
     """Delete a session and its messages. Returns True if it existed."""

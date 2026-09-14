@@ -4,11 +4,13 @@ import {
   ChevronDown,
   FolderKanban,
   MessageSquare,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Search,
 } from "lucide-react";
-import { createProject, getHistory, getProjects, getSessionMessages } from "../../api/client";
+import { createProject, getHistory, getProjects, getSessionMessages, renameSession } from "../../api/client";
 import "./ChatHistory.css";
 
 function formatRelativeTime(isoString) {
@@ -57,6 +59,9 @@ function ChatHistory({
   const [collapsed, setCollapsed] = useState(false);
   const [projects, setProjects] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [renamingSessionId, setRenamingSessionId] = useState(null);
+  const [renameTitle, setRenameTitle] = useState("");
   const [loadingSessionId, setLoadingSessionId] = useState(null);
   const [error, setError] = useState(null);
 
@@ -106,8 +111,15 @@ function ChatHistory({
 
   const activeProject = projects.find((project) => project.id === activeProjectId) || null;
 
+  const filteredSessions = sessions.filter((session) =>
+    (session.title || "Untitled chat")
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
+
   const handleSelect = async (sessionId, projectId) => {
     if (loadingSessionId) return;
+    setSearchQuery("");
     setLoadingSessionId(sessionId);
     setError(null);
     try {
@@ -120,8 +132,32 @@ function ChatHistory({
     }
   };
 
+  const handleRename = async (sessionId) => {
+  const title = renameTitle.trim();
+
+  if (!title) return;
+
+  try {
+    await renameSession(sessionId, title);
+
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === sessionId
+          ? { ...session, title }
+          : session
+      )
+    );
+
+    setRenamingSessionId(null);
+    setRenameTitle("");
+  } catch (err) {
+    setError(err.message || "Could not rename chat.");
+  }
+};
+
   const handlePickProject = (projectId) => {
     onProjectChange(projectId);
+    setSearchQuery("");
     setDropdownOpen(false);
     setIsCreatingProject(false);
   };
@@ -173,7 +209,7 @@ function ChatHistory({
   return (
     <aside className="chat-history">
       <div className="chat-history__top-row">
-        <span className="chat-history__brand">Chats Test</span>
+        <span className="chat-history__brand">Chats</span>
         <button
           className="chat-history__collapse-toggle"
           onClick={() => setCollapsed(true)}
@@ -182,6 +218,16 @@ function ChatHistory({
         >
           <PanelLeftClose size={18} />
         </button>
+      </div>
+      <div className="chat-history__search">
+          <Search size={15} className="chat-history__search-icon" />
+          <input
+            type="search"
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            aria-label="Search chats"
+          />
       </div>
 
       <div className="chat-history__project-picker" ref={dropdownRef}>
@@ -267,25 +313,93 @@ function ChatHistory({
       )}
 
       <ul className="chat-history__list">
-        {sessions.map((session) => {
-          const isActive = session.id === activeSessionId;
-          return (
-            <li key={session.id}>
-              <button
-                className={"chat-history__item" + (isActive ? " chat-history__item--active" : "")}
-                onClick={() => handleSelect(session.id, session.project_id)}
-                disabled={loadingSessionId === session.id}
-              >
-                <MessageSquare size={14} className="chat-history__item-icon" />
-                <span className="chat-history__item-body">
-                  <span className="chat-history__item-title">{session.title || "Untitled chat"}</span>
-                  <span className="chat-history__item-date">{formatRelativeTime(session.created_at)}</span>
-                </span>
-                {isActive && <span className="chat-history__item-dot" aria-hidden="true" />}
-              </button>
-            </li>
-          );
-        })}
+        {searchQuery && filteredSessions.length === 0 ? (
+          <li className="chat-history__empty">
+            No chats match your search.
+          </li>
+        ) : (
+          filteredSessions.map((session) => {
+  const isActive = session.id === activeSessionId;
+  const isRenaming = session.id === renamingSessionId;
+
+  return (
+    <li key={session.id} className="chat-history__list-item">
+      {isRenaming ? (
+        <div className="chat-history__rename-row">
+          <input
+            type="text"
+            value={renameTitle}
+            onChange={(event) => setRenameTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                handleRename(session.id);
+              }
+
+              if (event.key === "Escape") {
+                setRenamingSessionId(null);
+                setRenameTitle("");
+              }
+            }}
+            autoFocus
+          />
+
+          <button
+            onClick={() => handleRename(session.id)}
+            aria-label="Save chat name"
+          >
+            <Check size={14} />
+          </button>
+        </div>
+      ) : (
+        <>
+          <button
+            className={
+              "chat-history__item" +
+              (isActive ? " chat-history__item--active" : "")
+            }
+            onClick={() => handleSelect(session.id, session.project_id)}
+            disabled={loadingSessionId === session.id}
+          >
+            <MessageSquare
+              size={14}
+              className="chat-history__item-icon"
+            />
+
+            <span className="chat-history__item-body">
+              <span className="chat-history__item-title">
+                {session.title || "Untitled chat"}
+              </span>
+
+              <span className="chat-history__item-date">
+                {formatRelativeTime(session.created_at)}
+              </span>
+            </span>
+
+            {isActive && (
+              <span
+                className="chat-history__item-dot"
+                aria-hidden="true"
+              />
+            )}
+          </button>
+
+          <button
+            className="chat-history__rename-button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setRenamingSessionId(session.id);
+              setRenameTitle(session.title || "");
+            }}
+            aria-label="Rename chat"
+          >
+            <MoreHorizontal size={15} />
+          </button>
+        </>
+      )}
+    </li>
+  );
+})
+        )}
       </ul>
     </aside>
   );
