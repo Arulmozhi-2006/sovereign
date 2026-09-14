@@ -14,6 +14,7 @@ from backend.modules.history.db import (
     create_project,
     create_session,
     delete_session,
+    rename_session,
     get_messages,
     list_projects,
     list_sessions,
@@ -48,6 +49,28 @@ async def delete_session_history(session_id: str):
     if not delete_session(session_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
     return {"status": "deleted", "session_id": session_id}
+
+class RenameSessionRequest(BaseModel):
+    title: str
+
+
+@router.put("/history/{session_id}")
+async def rename_session_history(session_id: str, request: RenameSessionRequest):
+    title = request.title.strip()
+
+    if not title:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Chat title is required.",
+        )
+
+    if not rename_session(session_id, title):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    return {"status": "renamed", "session_id": session_id, "title": title}
 
 
 @router.post("/projects")
