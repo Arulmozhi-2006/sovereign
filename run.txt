@@ -1,5 +1,5 @@
 Run commands
-Backend (from C:\Users\FAYAZ\Desktop\TechTactix):
+Backend (from C:\Users\Arulmozhi\Desktop\TechTactix):
 
 pip install -r backend/requirements.txt
 
